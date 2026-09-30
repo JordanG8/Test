@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>טל גורן · אדריכלית — 30 שניות</title>
+<style>
+@font-face{font-family:Heebo;font-weight:100 900;src:url(fonts/heebo-he.woff2) format("woff2");unicode-range:U+307-308,U+590-5FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:Heebo;font-weight:100 900;src:url(fonts/heebo-lat.woff2) format("woff2");unicode-range:U+??,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Heebo;font-weight:100 900;src:url(fonts/heebo-lat2.woff2) format("woff2");unicode-range:U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304}
+:root{--ink:#25323c;--slate:#2e4250;--clay:#a96f57;--paper:#fbfaf8;--sand:#ede8e1;--hair:#ddd6cb;--mute:#93a0a8}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#0c1116;height:100%;overflow:hidden;font-family:Heebo,Assistant,sans-serif}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#stage{position:absolute;left:50%;top:50%;width:1080px;height:1920px;overflow:hidden;background:var(--paper);transform-origin:center;direction:rtl}
+.scene{position:absolute;inset:0;display:none;overflow:hidden}
+.dark{background:var(--slate);color:#fff}
+.light{background:var(--paper);color:var(--slate)}
+.grid{position:absolute;inset:-48px;background-image:linear-gradient(90deg,rgba(46,66,80,.06) 1px,transparent 1px),linear-gradient(rgba(46,66,80,.06) 1px,transparent 1px);background-size:48px 48px}
+.dark .grid{background-image:linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px)}
+.abs{position:absolute}
+.h{white-space:nowrap;font-weight:900;letter-spacing:-.02em;line-height:1.02}
+.label{font-weight:600;font-size:34px;letter-spacing:.14em;color:var(--clay);display:flex;align-items:center;gap:22px}
+.label i{display:block;height:2px;width:70px;background:currentColor;opacity:.6;transform-origin:100% 50%}
+.dark .label{color:#d4a08a}
+.chip{position:absolute;background:var(--paper);color:var(--slate);border:2px solid var(--slate);padding:18px 30px;font-weight:800;font-size:48px;white-space:nowrap;box-shadow:12px 12px 0 var(--clay)}
+.clay{color:var(--clay)}
+.dark .clay{color:#d4a08a}
+svg{overflow:visible}
+.ln{fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:square}
+.ph{position:absolute;overflow:hidden;background:var(--sand)}
+.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.hud{position:absolute;inset:0;pointer-events:none;z-index:50}
+.corner{position:absolute;width:70px;height:70px;border:0 solid rgba(255,255,255,.75)}
+.bubble{position:absolute;padding:26px 34px;font-size:44px;font-weight:500;line-height:1.3;max-width:700px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+#wipe{position:absolute;top:0;bottom:0;width:1180px;background:var(--clay);z-index:60;display:none}
+#flash{position:absolute;inset:0;background:#fff;z-index:70;opacity:0;pointer-events:none}
+#grain{position:absolute;inset:0;z-index:55;opacity:.07;mix-blend-mode:multiply;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>")}
+#bar{position:absolute;top:0;right:0;height:8px;background:var(--clay);z-index:80}
+#start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:99;background:rgba(12,17,22,.85);color:#fff;font-size:40px;font-weight:800;cursor:pointer;flex-direction:column;gap:14px;font-family:Heebo}
+#start small{font-weight:400;font-size:20px;opacity:.6}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="start"><div>▶ לחצו להפעלה עם סאונד</div><small>30 שניות · 1080×1920</small></div>
+<audio id="aud" src="audio.mp3" preload="auto"></audio>
+<script>
+const $=(s,p=document)=>p.querySelector(s);
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const seg=(t,a,b)=>clamp((t-a)/(b-a));
+const E={out:x=>1-Math.pow(1-x,3),expo:x=>x>=1?1:1-Math.pow(2,-10*x),back:x=>{const c=1.9;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)},io:x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
+const stage=$('#stage');
+const el=(cls,html,style)=>{const d=document.createElement('div');d.className=cls||'';if(html!=null)d.innerHTML=html;if(style)d.style.cssText=style;return d};
+// pop: animate element in from t0 (duration d) — opacity + translate/scale/rotate
+function pop(e,t,t0,o={}){const d=o.d||.35,p=(o.ease||E.back)(seg(t,t0,t0+d)),q=E.out(seg(t,t0,t0+d*.6));
+  e.style.opacity=t<t0?0:(o.fade===false?1:q);
+  e.style.transform=`translate(${(o.x||0)*(1-p)}px,${(o.y||0)*(1-p)}px) scale(${(o.s==null?1:o.s+(1-o.s)*p)}) rotate(${(o.r||0)*(1-p)}deg)`+(o.post||'')}
+function draw(p,e,t,a,b){e.style.strokeDasharray=1;e.style.strokeDashoffset=1-E.io(seg(t,a,b))}
+const svg=(w,h,inner,style)=>`<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="position:absolute;${style||''}">${inner}</svg>`;
+const words=(txt,cls,style)=>{const w=el('h '+(cls||''),txt.split(' ').map(x=>`<span class="w" style="display:inline-block;margin-inline-start:.22em">${x}</span>`).join(''),style);return w};
+function wordAnim(root,t,t0,step=.12,o={}){[...root.querySelectorAll('.w')].forEach((w,i)=>pop(w,t,t0+i*step,Object.assign({y:60,d:.3},o)))}
+const labelEl=(n,txt,style)=>el('label label',`<span>${n}</span><i></i><span>${txt}</span>`,style);
+
+/* ================== scenes ================== */
+const S={};
+const sc=(id,cls,a,b)=>{const d=el('scene '+cls);d.id=id;d.dataset.a=a;d.dataset.b=b;stage.appendChild(d);return S[id]={d,a,b}};
+
+/* ---- S0 hook 0-4 : POV, chaos ---- */
+{const s=sc('s0','dark',0,4);s.d.appendChild(el('grid'));
+ const cam=el('abs','',"inset:0");s.d.appendChild(cam);s.cam=cam;
+ // the plot
+ cam.insertAdjacentHTML('beforeend',svg(1080,1920,`
+  <g style="color:#d4a08a"><path id="plot" class="ln" pathLength="1" d="M180 1230 L820 1180 L930 1480 L600 1640 L230 1560 Z" style="stroke-width:5"/></g>
+  <g style="color:rgba(255,255,255,.4)" ><path id="plot2" class="ln" pathLength="1" d="M180 1230 L820 1180 L930 1480 L600 1640 L230 1560 Z" style="stroke-dasharray:14 14;transform:translate(0,0) scale(1);transform-origin:560px 1410px"/></g>
+  <g style="color:#fff"><path id="dim1" class="ln" pathLength="1" d="M180 1140 L820 1090 M180 1120 v40 M820 1070 v40" style="stroke-width:2"/></g>`));
+ cam.appendChild(el('abs',"<span>מגרש</span>","left:0;right:0;top:1360px;text-align:center;font-size:44px;font-weight:600;letter-spacing:.3em;color:rgba(255,255,255,.65)"));
+ s.h1=words('יש לך מגרש.','',"position:absolute;right:70px;left:70px;top:190px;font-size:150px;color:#fff");
+ s.h2=words('ומיליון שאלות.','',"position:absolute;right:70px;left:70px;top:380px;font-size:118px;color:#d4a08a");
+ cam.append(s.h1,s.h2);
+ const Q=[['כמה זה יעלה?',1.0,80,700,-5],['כמה זמן זה ייקח?',1.5,420,860,4],['איזה קבלן?',2.0,90,1000,3],['מי מטפל בוועדה?',2.5,330,1130,-4],['מאיפה מתחילים?',3.0,110,1290,5],['תקציב?',3.25,560,1420,-6],['היתר?',3.5,120,1470,3],['חריגות??',3.75,430,1560,-3]];
+ s.q=Q.map(q=>{const c=el('chip',q[0],`right:${q[2]}px;top:${q[3]-120}px;font-size:${52+Math.round(q[1]*8)}px`);cam.appendChild(c);return {c,t0:q[1],r:q[4]}});
+ s.cam=cam}
+S.s0.update=t=>{const s=S.s0,sh=seg(t,1,4);
+ const amp=sh*sh*22,tx=Math.sin(t*38)*amp,ty=Math.cos(t*31)*amp,z=1+sh*.16;
+ s.cam.style.transform=`translate(${tx}px,${ty}px) scale(${z}) rotate(${Math.sin(t*7)*sh*1.2}deg)`;
+ wordAnim(s.h1,t,.15,.14,{y:90});
+ wordAnim(s.h2,t,1.0,.14,{y:80});
+ const p=$('#plot');p.style.strokeDasharray=1;p.style.strokeDashoffset=1-E.io(seg(t,.0,.9));
+ $('#plot2').style.opacity=seg(t,.9,1.2)*(.4+.4*Math.sin(t*10));$('#plot2').style.transform=`scale(${1+.03*Math.sin(t*6)})`;
+ $('#dim1').style.strokeDasharray=1;$('#dim1').style.strokeDashoffset=1-E.out(seg(t,.4,1.1));
+ s.q.forEach(o=>pop(o.c,t,o.t0,{y:-120,s:.4,r:o.r*2,d:.28,post:`rotate(${o.r}deg)`}));
+ s.d.style.filter=t>3.85?`brightness(${1+ (t-3.85)*6})`:'none'};
+
+/* ---- S1 logo drop 4-6 ---- */
+{const s=sc('s1','light',4,6);s.d.appendChild(el('grid'));
+ s.d.insertAdjacentHTML('beforeend',svg(1080,1920,`<g style="color:var(--hair)"><path class="ln" pathLength="1" id="fr" d="M60 60 H1020 V1860 H60 Z" style="stroke-width:2"/></g>`));
+ s.logo=el('abs','<img src="img/logo.png" style="width:1100px;height:auto;display:block">',"left:-10px;top:540px;width:1100px");
+ s.tag=el('abs','',"left:0;right:0;top:1120px;text-align:center");
+ s.tag.innerHTML='<div class="h" style="font-size:88px;color:var(--slate)">אדריכלית.</div><div class="h clay" style="font-size:88px">בתים פרטיים.</div>';
+ s.n1=el('abs','<div class="h" style="font-size:190px;color:var(--slate)"><span dir="ltr"><span id="c1">0</span>+</span></div><div class="label" style="justify-content:center;margin-top:8px;color:var(--slate)"><span>שנות ניסיון</span></div>',"right:70px;width:440px;top:1440px;text-align:center");
+ s.n2=el('abs','<div class="h" style="font-size:190px;color:var(--clay)"><span dir="ltr"><span id="c2">0</span>+</span></div><div class="label" style="justify-content:center;margin-top:8px;color:var(--slate)"><span>בתים שתוכננו</span></div>',"left:70px;width:440px;top:1440px;text-align:center");
+ s.d.append(s.logo,s.tag,s.n1,s.n2);s.d.appendChild(el('abs','',"left:540px;top:1420px;width:2px;height:330px;background:var(--hair)"))}
+S.s1.update=t=>{const s=S.s1;pop(s.logo,t,4.0,{s:1.35,d:.5,ease:E.expo});
+ $('#fr').style.strokeDasharray=1;$('#fr').style.strokeDashoffset=1-E.out(seg(t,4,4.8));
+ [...s.tag.children].forEach((c,i)=>pop(c,t,4.5+i*.25,{y:50,d:.3}));
+ pop(s.n1,t,5.0,{y:80,d:.3});pop(s.n2,t,5.5,{y:80,d:.3});
+ $('#c1').textContent=Math.round(25*E.out(seg(t,5.0,5.4)));$('#c2').textContent=Math.round(100*E.out(seg(t,5.5,5.9)))};
+
+/* ---- S2 chat 6-8 ---- */
+{const s=sc('s2','light',6,8);s.d.appendChild(el('grid'));
+ s.d.appendChild(labelEl('01','שיחה אחת',"position:absolute;right:70px;top:150px"));
+ s.hd=words('שיחה אחת.','',"position:absolute;right:70px;left:70px;top:230px;font-size:170px;color:var(--slate)");
+ s.hd2=words('בלי עלות.','',"position:absolute;right:70px;left:70px;top:410px;font-size:170px;color:var(--clay)");
+ s.phone=el('abs','',"left:130px;top:700px;width:820px;height:1400px;background:var(--ink);border-radius:80px;padding:26px;box-shadow:0 60px 120px rgba(37,50,60,.35)");
+ s.scr=el('abs','',"left:26px;right:26px;top:26px;bottom:26px;background:#f1ede6;border-radius:56px;overflow:hidden");
+ s.scr.appendChild(el('abs','<div style="display:flex;align-items:center;gap:22px;padding:0 34px;height:150px;color:#fff;font-weight:700;font-size:40px;background:var(--slate)"><div style="width:76px;height:76px;border-radius:50%;background:url(img/tal.jpg) center/cover"></div><div>טל גורן · אדריכלית<div style="font-weight:400;font-size:26px;opacity:.7">מחוברת</div></div></div>',"left:0;right:0;top:0"));
+ s.b1=el('bubble','היי, אני טל.<br>ספרו לי על המגרש.',"right:40px;top:200px;background:#fff;border-radius:34px 34px 34px 6px;color:var(--slate)");
+ s.b2=el('bubble','פגישת ייעוץ ראשונה —<br><b style="color:var(--clay)">עליי.</b>',"right:40px;top:410px;background:#fff;border-radius:34px 34px 34px 6px;color:var(--slate)");
+ s.b3=el('bubble','<span id="typed"></span>',"left:40px;top:640px;background:#dbe6dc;border-radius:34px 34px 6px 34px;color:var(--ink);min-width:260px");
+ s.dots=el('bubble','<span style="letter-spacing:.3em;font-size:56px;line-height:.5">•••</span>',"right:40px;top:620px;background:#fff;border-radius:34px 34px 34px 6px;padding:34px 40px");
+ s.scr.append(s.b1,s.b2,s.dots,s.b3);s.phone.appendChild(s.scr);s.d.append(s.hd,s.hd2,s.phone);
+ s.notif=el('abs','<b>טל גורן</b><br>פגישת ייעוץ ראשונה ללא עלות',"right:120px;left:120px;top:590px;padding:24px 34px;background:rgba(37,50,60,.94);color:#fff;font-size:34px;border-radius:30px;z-index:5")}
+S.s2.update=t=>{const s=S.s2;wordAnim(s.hd,t,6.05,.12);wordAnim(s.hd2,t,6.3,.12);
+ pop(s.phone,t,6.0,{y:600,r:5,d:.5,ease:E.expo,post:`rotate(${-2+Math.sin(t*3)*.6}deg)`});
+ pop(s.b1,t,6.15,{s:.6,y:40,d:.25});pop(s.b2,t,6.65,{s:.6,y:40,d:.25});
+ s.dots.style.opacity=(t>7.0&&t<7.5)?0:0;
+ const full='מעולה, מתי נפגשים?';const k=Math.floor(full.length*seg(t,7.0,7.5));$('#typed').textContent=full.slice(0,k);
+ s.b3.style.opacity=t>=7.0?1:0;s.b3.style.transform=`scale(${1+(t>7.5?Math.max(0,.06-(t-7.5)*.3):0)})`;
+ };
+
+/* ---- S3 בירורים 8-10 ---- */
+{const s=sc('s3','dark',8,10);s.d.appendChild(el('grid'));
+ s.d.appendChild(labelEl('01','בירורים מקדימים',"position:absolute;right:70px;top:150px"));
+ s.hd=words('קודם בודקים.','',"position:absolute;right:70px;left:70px;top:230px;font-size:160px;color:#fff");
+ s.hd2=words('אחר כך משרטטים.','',"position:absolute;right:70px;left:70px;top:410px;font-size:110px;color:#d4a08a");
+ s.d.append(s.hd,s.hd2);
+ s.d.insertAdjacentHTML('beforeend',svg(1080,1920,`
+  <g style="color:#fff"><path id="p3" class="ln" pathLength="1" d="M160 900 L900 850 L980 1250 L620 1450 L200 1380 Z" style="stroke-width:5"/></g>
+  <g style="color:#d4a08a"><path id="p3b" class="ln" pathLength="1" d="M270 990 L810 955 L865 1210 L610 1330 L300 1285 Z" style="stroke-dasharray:18 12"/></g>
+  <g style="color:#fff"><path id="d3" class="ln" pathLength="1" d="M160 800 L900 750 M160 780 v40 M900 730 v40" style="stroke-width:2"/><path id="d3b" class="ln" pathLength="1" d="M1040 850 L1040 1250 M1020 850 h40 M1020 1250 h40" style="stroke-width:2"/></g>
+  <rect id="scan" x="120" y="0" width="840" height="6" fill="#d4a08a"/>`));
+ const T=[['זכויות בנייה',8.0,700,1560],['מגבלות תכנון',8.5,130,1660],['קווי בניין',9.0,640,1760]];
+ s.t=T.map(a=>{const c=el('chip',a[0],`right:${a[2]>600?90:300}px;top:${a[3]}px;font-size:56px;color:var(--slate);border-color:#fff;box-shadow:12px 12px 0 #d4a08a`);s.d.appendChild(c);return {c,t0:a[1]}});
+ s.d.appendChild(el('abs','<span>בדיקת המגרש</span>',"left:0;right:0;top:1030px;text-align:center;font-size:38px;font-weight:600;letter-spacing:.3em;color:rgba(255,255,255,.7)"))}
+S.s3.update=t=>{const s=S.s3;wordAnim(s.hd,t,8.05,.13);wordAnim(s.hd2,t,8.3,.12);
+ [['p3',8.0,8.7],['p3b',8.4,9.1],['d3',8.3,8.9],['d3b',8.5,9.1]].forEach(a=>{const e=$('#'+a[0]);if(a[0]!=='p3b'){e.style.strokeDasharray=1;e.style.strokeDashoffset=1-E.io(seg(t,a[1],a[2]))}else e.style.opacity=seg(t,a[1],a[1]+.3)});
+ const u=(t-8.5)%1.5/1.5;$('#scan').setAttribute('y',780+ (Math.abs(((t-8)/.75)%2-1))*760);$('#scan').style.opacity=t>8.3?.9:0;
+ s.t.forEach(o=>pop(o.c,t,o.t0,{x:200,d:.3}))};
+
+/* ---- S4 תכנון 10-12 ---- */
+{const s=sc('s4','light',10,12);s.d.appendChild(el('grid'));
+ s.d.appendChild(labelEl('02','תכנון מוקדם',"position:absolute;right:70px;top:150px"));
+ s.hd=words('מהצרכים שלכם','',"position:absolute;right:70px;left:70px;top:230px;font-size:120px;color:var(--slate)");
+ s.hd2=words('לבית על הנייר.','',"position:absolute;right:70px;left:70px;top:370px;font-size:120px;color:var(--clay)");
+ s.d.append(s.hd,s.hd2);
+ const rooms=[['M140 760 H620 V1180 H140 Z','סלון',10.1],['M620 760 H940 V1030 H620 Z','מטבח',10.3],['M620 1030 H940 V1400 H620 Z','שינה',10.5],['M140 1180 H620 V1400 H140 Z','ילדים',10.7],['M140 1400 H940 V1620 H140 Z','גינה',10.9]];
+ s.rooms=rooms;
+ s.d.insertAdjacentHTML('beforeend',svg(1080,1920,`<g style="color:var(--slate)">${rooms.map((r,i)=>`<path id="rm${i}" class="ln" pathLength="1" d="${r[0]}" style="stroke-width:${i==4?2:8}"/><rect id="rf${i}" x="0" y="0" width="0" height="0" fill="var(--clay)" opacity="0"/>`).join('')}</g><g style="color:var(--clay)"><path id="dr" class="ln" pathLength="1" d="M420 1180 h100 M620 900 v-90 M700 1030 h90" style="stroke-width:8"/></g>`));
+ s.lbl=rooms.map((r,i)=>{const nums=r[0].match(/\d+/g).map(Number);const x=(nums[0]+nums[2]||0);const c=el('abs',r[1],`font-weight:800;font-size:44px;color:var(--slate);left:${(140)}px;top:0;opacity:0`);s.d.appendChild(c);return c});
+ const pos=[[380,940],[780,890],[780,1200],[380,1270],[540,1490]];s.pos=pos;
+ s.stat=el('abs','<div class="h" style="font-size:140px;color:var(--slate)"><span id="sqm">0</span> <span style="font-size:60px" class="clay">מ״ר</span></div>',"left:0;right:0;top:1700px;text-align:center");s.d.appendChild(s.stat)}
+S.s4.update=t=>{const s=S.s4;wordAnim(s.hd,t,10.05,.1);wordAnim(s.hd2,t,10.3,.1);
+ s.rooms.forEach((r,i)=>{const e=$('#rm'+i);e.style.strokeDasharray=1;e.style.strokeDashoffset=1-E.out(seg(t,r[2]-.12,r[2]+.2));
+  const l=s.lbl[i];l.style.transform='translate(-50%,-50%)';l.style.left=s.pos[i][0]+'px';l.style.top=s.pos[i][1]+'px';pop(l,t,r[2]+.1,{s:.5,d:.25,post:' translate(-50%,-50%)'});});
+ pop(s.stat,t,11.1,{y:60,d:.3});$('#sqm').textContent=Math.round(187*E.out(seg(t,11.1,11.9)));
+ const d=$('#dr');d.style.strokeDasharray=1;d.style.strokeDashoffset=1-seg(t,11.0,11.4)};
+
+/* ---- S5 רישוי / permit stamp 12-14 ---- */
+{const s=sc('s5','dark',12,14);s.d.appendChild(el('grid'));
+ s.d.appendChild(labelEl('03','רישוי מלא',"position:absolute;right:70px;top:150px"));
+ s.hd=words('הוועדה.','',"position:absolute;right:70px;left:70px;top:230px;font-size:190px;color:#fff");
+ s.hd2=words('הרשויות. הכול עליי.','',"position:absolute;right:70px;left:70px;top:450px;font-size:100px;color:#d4a08a");
+ s.doc=el('abs','',"left:180px;top:720px;width:720px;height:940px;background:var(--paper);box-shadow:0 50px 100px rgba(0,0,0,.4);color:var(--slate);padding:56px");
+ s.doc.innerHTML='<div class="label" style="color:var(--clay);font-size:26px"><span>בקשה להיתר בנייה</span></div><div style="margin-top:40px">'+[520,640,400,600,500,300].map(w=>`<div style="height:18px;width:${w}px;background:var(--sand);margin-bottom:34px"></div>`).join('')+'</div><svg viewBox="0 0 600 260" width="600" height="260" style="position:absolute;left:60px;bottom:150px"><g style="color:var(--slate)"><path class="ln" style="stroke-width:3" d="M30 230 V90 L200 30 L370 90 V230 Z M100 230 V150 H160 V230 M240 110 H320 V170 H240 Z M420 230 H580"/></g></svg>';
+ s.stamp=el('abs','<div style="border:14px solid var(--clay);padding:20px 50px;font-weight:900;font-size:130px;letter-spacing:.02em;color:var(--clay);text-align:center;line-height:1.05;background:rgba(251,250,248,.85)">היתר<br>בנייה</div><div style="text-align:center;font-weight:700;font-size:34px;letter-spacing:.2em;color:var(--clay);margin-top:10px">אושר</div>',"left:270px;top:1000px;width:540px");
+ s.d.append(s.hd,s.hd2,s.doc,s.stamp)}
+S.s5.update=t=>{const s=S.s5;wordAnim(s.hd,t,12.05,.1);wordAnim(s.hd2,t,12.3,.1);
+ pop(s.doc,t,12.0,{y:300,r:-4,d:.4,ease:E.expo,post:`rotate(${-1.5}deg)`});
+ const k=seg(t,12.5,12.62);s.stamp.style.opacity=t>=12.5?1:0;
+ s.stamp.style.transform=`rotate(-12deg) scale(${t<12.5?3:1+(1-E.out(k))*2+ (t>12.62?Math.max(0,.05-(t-12.62)*.3):0)})`;
+ const shake=t>12.5&&t<12.9?(1-(t-12.5)/.4)*14:0;s.d.style.transform=`translate(${Math.sin(t*90)*shake}px,${Math.cos(t*80)*shake}px)`};
+
+/* ---- S6 תכניות עבודה 14-16 ---- */
+{const s=sc('s6','light',14,16);s.d.appendChild(el('grid'));
+ s.d.appendChild(labelEl('04','תכניות עבודה',"position:absolute;right:70px;top:150px"));
+ s.hd=words('כל פרט.','',"position:absolute;right:70px;left:70px;top:230px;font-size:190px;color:var(--slate)");
+ s.hd2=words('בקנה מידה 1:50.','',"position:absolute;right:70px;left:70px;top:450px;font-size:120px;color:var(--clay)");
+ s.d.append(s.hd,s.hd2);
+ let g='';for(let i=0;i<9;i++)g+=`<path id="w${i}" class="ln" pathLength="1" d="${['M120 1500 H960','M120 1500 V820 H540 L700 720 L960 820 V1500','M300 1500 V1180 H440 V1500','M560 1000 H800 V1200 H560 Z','M120 1600 H960 M120 1580 v40 M960 1580 v40','M120 1700 H400 M540 1700 H760','M700 720 V1500','M120 820 H960','M560 1100 H800'][i]}" style="stroke-width:${i<3?7:3}"/>`;
+ s.d.insertAdjacentHTML('beforeend',svg(1080,1920,`<g style="color:var(--slate)">${g}</g><g style="color:var(--clay)"><circle id="cc" class="ln" cx="820" cy="1700" r="60" pathLength="1"/></g>`));
+ s.tags=[['חתך A-A',14.5,180,1730],['פרט חלון',14.8,560,880],['כתב כמויות',15.1,600,1790]].map(a=>{const c=el('chip',a[0],`right:${a[2]}px;top:${a[3]}px;font-size:40px;padding:14px 26px`);s.d.appendChild(c);return {c,t0:a[1]}});
+ s.scale=el('abs','<div class="h" style="font-size:180px;color:var(--slate)">1:<span class="clay">50</span></div>',"left:70px;top:1600px;opacity:.12")}
+S.s6.update=t=>{const s=S.s6;wordAnim(s.hd,t,14.05,.1);wordAnim(s.hd2,t,14.3,.1);
+ for(let i=0;i<9;i++){const e=$('#w'+i);e.style.strokeDasharray=1;e.style.strokeDashoffset=1-E.io(seg(t,14.1+i*.09,14.7+i*.09))}
+ const c=$('#cc');c.style.strokeDasharray=1;c.style.strokeDashoffset=1-seg(t,15,15.4);
+ s.tags.forEach(o=>pop(o.c,t,o.t0,{y:40,s:.6,d:.25}))};
+
+/* ---- S7 ליווי 16-18 (photo, POV walk-in) ---- */
+{const s=sc('s7','dark',16,18);
+ s.ph=el('ph','<img src="img/p4.webp">',"inset:0");s.d.appendChild(s.ph);
+ s.d.appendChild(el('abs','',"inset:0;background:linear-gradient(180deg,rgba(37,50,60,.85) 0%,rgba(37,50,60,0) 40%,rgba(37,50,60,0) 55%,rgba(37,50,60,.92) 100%)"));
+ s.d.appendChild(labelEl('05','ליווי עד תעודת גמר',"position:absolute;right:70px;top:150px;color:#fff"));
+ s.hd=words('לא לבד.','',"position:absolute;right:70px;left:70px;top:230px;font-size:200px;color:#fff");
+ s.hd2=words('עד המפתח.','',"position:absolute;right:70px;left:70px;top:1440px;font-size:170px;color:#fff");
+ s.sub=el('abs','בכל שלב. מהמגרש ועד הכניסה הביתה.',"right:70px;left:70px;top:1660px;font-size:52px;font-weight:600;color:#e6cdbf");
+ s.steps=el('abs','',"right:70px;left:70px;top:1790px;display:flex;gap:14px");
+ for(let i=0;i<5;i++)s.steps.appendChild(el('','',"flex:1;height:10px;background:rgba(255,255,255,.3);position:relative;overflow:hidden")).innerHTML='<div style="position:absolute;inset:0;background:var(--clay);transform-origin:100% 50%;transform:scaleX(0)"></div>';
+ s.d.append(s.hd,s.hd2,s.sub,s.steps)}
+S.s7.update=t=>{const s=S.s7;const z=1.15+.22*seg(t,16,18);s.ph.firstChild.style.transform=`scale(${z}) translateY(${(1-seg(t,16,18))*-40}px)`;
+ wordAnim(s.hd,t,16.05,.1);wordAnim(s.hd2,t,16.5,.12);pop(s.sub,t,16.9,{y:30,d:.3});
+ [...s.steps.children].forEach((c,i)=>{c.firstChild.style.transform=`scaleX(${E.out(seg(t,16.0+i*.4,16.4+i*.4))})`})};
+
+/* ---- S8 calculator 18-20 ---- */
+{const s=sc('s8','dark',18,20);s.d.appendChild(el('grid'));
+ s.d.appendChild(labelEl('₪','מחשבון עלויות',"position:absolute;right:70px;top:150px"));
+ s.hd=words('כמה יעלה?','',"position:absolute;right:70px;left:70px;top:230px;font-size:190px;color:#fff");
+ s.hd2=words('תשובה מיד.','',"position:absolute;right:70px;left:70px;top:460px;font-size:130px;color:#d4a08a");
+ s.d.append(s.hd,s.hd2);
+ s.card=el('abs','',"left:90px;right:90px;top:760px;height:1000px;background:var(--paper);color:var(--slate);padding:50px 56px;box-shadow:0 50px 100px rgba(0,0,0,.35)");
+ const R=[['סלון',42],['מטבח',26],['חדר הורים',24],['ילדים',36],['שירותים',14]];s.R=R;
+ s.card.innerHTML=R.map((r,i)=>`<div class="row" style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--hair);padding:26px 0;font-size:50px;font-weight:700"><span>${r[0]}</span><span style="display:flex;gap:26px;align-items:center"><span style="color:var(--clay)">${r[1]} מ״ר</span><span style="border:2px solid var(--slate);width:52px;height:52px;display:flex;align-items:center;justify-content:center;font-size:40px;line-height:1">+</span></span></div>`).join('')+`<div style="margin-top:44px;display:flex;justify-content:space-between;align-items:flex-end"><div><div class="label" style="font-size:28px"><span>הערכת עלות</span></div><div class="h" id="cost" style="font-size:120px;margin-top:10px;direction:ltr;text-align:right">₪0,000,000</div></div><div style="background:var(--clay);color:#fff;font-weight:800;font-size:38px;padding:16px 26px" id="okb">מיידי</div></div>`;
+ s.d.appendChild(s.card)}
+S.s8.update=t=>{const s=S.s8;wordAnim(s.hd,t,18.05,.1);wordAnim(s.hd2,t,18.3,.1);pop(s.card,t,18.0,{y:500,d:.45,ease:E.expo});
+ [...s.card.querySelectorAll('.row')].forEach((r,i)=>pop(r,t,18.35+i*.14,{x:-60,d:.25,fade:true}));
+ const k=seg(t,18.0,19.75),locked=t>=19.75;
+ let str;if(locked)str='₪ ✓';else{const seed=Math.floor(t*30);let x=(seed*9301+49297)%233280;const d=[];for(let i=0;i<7;i++){x=(x*9301+49297)%233280;d.push(x%10)}str='₪'+d.slice(0,1)+','+d.slice(1,4).join('')+','+d.slice(4,7).join('')}
+ $('#cost').textContent=locked?'תשובה ✓':str;$('#cost').style.filter=locked?'none':`blur(${8-4*k}px)`;
+ const ok=$('#okb');ok.style.opacity=locked?1:.2;ok.style.transform=locked?`scale(${1+Math.max(0,.3-(t-19.75)*1.2)})`:'none'};
+
+/* ---- S9 montage 20-23 : houses ---- */
+{const s=sc('s9','dark',20,23);const P=[['p1','מושב מאור'],['p2','מושב מאור'],['p3','שרון'],['p5','מושב מאור'],['p6','פרדס חנה'],['p7','מושב מאור']];
+ s.items=P.map((p,i)=>{const w=el('ph','',"inset:0;display:none");w.innerHTML=`<img src="img/${p[0]}.webp">`;s.d.appendChild(w);return w});
+ s.d.appendChild(el('abs','',"inset:0;background:linear-gradient(180deg,rgba(37,50,60,.75),rgba(37,50,60,0) 34%,rgba(37,50,60,0) 60%,rgba(37,50,60,.9))"));
+ s.hd=words('בתים שכבר','',"position:absolute;right:70px;left:70px;top:190px;font-size:170px;color:#fff");
+ s.hd2=words('עומדים.','',"position:absolute;right:70px;left:70px;top:370px;font-size:170px;color:#e6b9a3");
+ s.loc=el('abs','',"right:70px;left:70px;top:1660px");
+ s.d.append(s.hd,s.hd2,s.loc);
+ s.cnt=el('abs','',"left:70px;top:1760px;font-weight:700;font-size:34px;letter-spacing:.2em;color:#fff")}
+S.s9.update=t=>{const s=S.s9;const i=Math.min(5,Math.floor((t-20)/.5)),lt=(t-20)-i*.5;
+ s.items.forEach((w,k)=>{w.style.display=k===i?'block':'none'});
+ const im=s.items[i].firstChild;im.style.transform=`scale(${1.05+lt*.25}) translateX(${(i%2?1:-1)*lt*40}px)`;
+ // grayscale -> colour on the beat (site's img-grayscale language)
+ im.style.filter=`grayscale(${1-E.out(seg(lt,0,.18))})`;
+ wordAnim(s.hd,t,20.0,.08);wordAnim(s.hd2,t,20.15,.08);
+ s.loc.innerHTML=`<div class="label" style="color:#fff"><span>${String(i+1).padStart(2,'0')}</span><i></i><span>${['מושב מאור','מושב מאור','שרון','מושב מאור','פרדס חנה','מושב מאור'][i]}</span></div>`;
+ const f=$('#flash');f.style.opacity=(lt<.06)?.45*(1-lt/.06):0};
+
+/* ---- S10 key 23-24 ---- */
+{const s=sc('s10','light',23,24);s.d.appendChild(el('grid'));
+ s.d.insertAdjacentHTML('beforeend',svg(1080,1920,`<g id="key" style="color:var(--clay);transform-origin:540px 780px"><circle class="ln" cx="540" cy="620" r="110" style="stroke-width:14"/><circle class="ln" cx="540" cy="620" r="34" style="stroke-width:10"/><path class="ln" d="M540 730 V1080 M540 900 h90 M540 990 h60" style="stroke-width:14"/></g>`));
+ s.hd=words('מפתח ביד.','',"position:absolute;right:70px;left:70px;top:1180px;font-size:200px;color:var(--slate);text-align:center")}
+S.s10.d.appendChild(S.s10.hd);
+S.s10.update=t=>{const s=S.s10;wordAnim(s.hd,t,23.05,.15);pop($('#key'),t,23.0,{s:.3,r:-90,d:.5,post:` rotate(${E.io(seg(t,23.35,23.7))*90}deg)`});
+ };
+
+/* ---- S11 Tal 24-26 ---- */
+{const s=sc('s11','light',24,26);s.d.appendChild(el('grid'));
+ s.ph=el('ph','<img src="img/tal.jpg" style="object-position:50% 25%">',"right:70px;left:70px;top:150px;height:1000px");
+ s.d.appendChild(s.ph);
+ s.d.appendChild(el('abs','',"right:70px;top:150px;width:12px;height:1000px;background:var(--clay)"));
+ s.hd=words('לבנות בית.','',"position:absolute;right:70px;left:70px;top:1210px;font-size:190px;color:var(--slate)");
+ s.hd2=words('בלי לאבד שליטה.','',"position:absolute;right:70px;left:70px;top:1430px;font-size:112px;color:var(--clay)");
+ s.sig=el('abs','אני טל. 25 שנה — איתכם בכל צעד.',"right:70px;left:70px;top:1680px;font-size:52px;font-weight:600;color:var(--slate)");
+ s.d.append(s.hd,s.hd2,s.sig)}
+S.s11.update=t=>{const s=S.s11;const im=s.ph.firstChild;im.style.transform=`scale(${1.02+.12*seg(t,24,26)})`;im.style.filter=`grayscale(${1-E.out(seg(t,24.2,25.4))})`;
+ pop(s.ph,t,24.0,{y:80,d:.4,ease:E.expo});wordAnim(s.hd,t,24.1,.12);wordAnim(s.hd2,t,24.55,.12);pop(s.sig,t,25.2,{y:30,d:.3})};
+
+/* ---- S12 CTA 26-30 ---- */
+{const s=sc('s12','dark',26,30);s.d.appendChild(el('grid'));
+ s.d.insertAdjacentHTML('beforeend',svg(1080,1920,`<g style="color:rgba(255,255,255,.18)"><path id="hs" class="ln" pathLength="1" d="M140 1700 V1050 L540 780 L940 1050 V1700 Z M140 1700 H940 M420 1700 V1350 H660 V1700 M720 1150 H840 V1270 H720 Z M240 1150 H360 V1270 H240 Z" style="stroke-width:4"/></g>`));
+ s.logo=el('abs','<img src="img/logo.png" style="width:900px;display:block;margin:-90px auto -100px">',"left:0;top:0;width:1080px;height:420px;background:var(--paper);overflow:hidden;padding-top:0");
+ s.hd=words('בואו נתכנן','',"position:absolute;right:70px;left:70px;top:580px;font-size:170px;color:#fff");
+ s.hd2=words('את הבית שלכם.','',"position:absolute;right:70px;left:70px;top:770px;font-size:118px;color:#e6b9a3");
+ s.cta=el('abs','לשיחת ייעוץ ללא עלות &larr;',"right:70px;left:70px;top:1130px;background:var(--paper);color:var(--slate);font-weight:900;font-size:64px;padding:44px 0;text-align:center;letter-spacing:.02em");
+ s.ph=el('abs','052-8345799',"left:0;right:0;top:1360px;text-align:center;font-weight:900;font-size:132px;letter-spacing:.01em;direction:ltr;color:#fff");
+ s.web=el('abs','talgoren.co.il',"left:0;right:0;top:1580px;text-align:center;font-weight:600;font-size:66px;letter-spacing:.2em;direction:ltr;color:#e6b9a3");
+ s.tr=el('abs','',"right:70px;left:70px;top:1740px;display:flex;justify-content:space-between;font-size:30px;font-weight:600;color:rgba(255,255,255,.7);white-space:nowrap");
+ s.tr.innerHTML='<span>בוגרת הטכניון בהצטיינות</span><span>25+ שנות ניסיון</span><span>שרון · מנשה · כרמל</span>';
+ s.d.append(s.logo,s.hd,s.hd2,s.cta,s.ph,s.web,s.tr)}
+S.s12.update=t=>{const s=S.s12;const h=$('#hs');h.style.strokeDasharray=1;h.style.strokeDashoffset=1-E.io(seg(t,26,27.6));
+ pop(s.logo,t,26.0,{s:1.3,d:.5,ease:E.expo});wordAnim(s.hd,t,26.3,.12);wordAnim(s.hd2,t,26.7,.12);
+ pop(s.cta,t,27.2,{y:80,d:.35});
+ const beat=(t*2)%1;s.cta.style.background=(t>=28&&Math.floor(t*2)%2===0)?'var(--clay)':'var(--paper)';s.cta.style.color=(t>=28&&Math.floor(t*2)%2===0)?'#fff':'var(--slate)';
+ pop(s.ph,t,27.6,{s:.7,d:.35});pop(s.web,t,28.0,{y:30,d:.3});pop(s.tr,t,28.3,{y:20,d:.3});
+ if(t>=29){s.ph.style.transform=`scale(${1+Math.max(0,.12-(t-29)*.5)})`}};
+
+/* ================== HUD (POV corners, wipes, progress) ================== */
+const hud=el('hud');['top:26px;right:26px;border-top-width:5px;border-right-width:5px','top:26px;left:26px;border-top-width:5px;border-left-width:5px','bottom:26px;right:26px;border-bottom-width:5px;border-right-width:5px','bottom:26px;left:26px;border-bottom-width:5px;border-left-width:5px'].forEach(c=>hud.appendChild(el('corner','',c)));
+hud.appendChild(el('','<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#e5473c;margin-inline-end:12px" id="rec"></span>POV',"position:absolute;left:50px;top:52px;font-weight:700;font-size:26px;letter-spacing:.25em;color:#fff;mix-blend-mode:difference"));
+stage.appendChild(hud);
+const wipe=el('','','');wipe.id='wipe';stage.appendChild(wipe);
+const flash=el('','','');flash.id='flash';stage.appendChild(flash);
+stage.appendChild(el('','','')).id='grain';
+const bar=el('','','');bar.id='bar';stage.appendChild(bar);
+const CUTS=[6,8,10,12,14,16,18];
+
+window.render=function(t){
+  t=Math.max(0,Math.min(29.999,t));
+  Object.values(S).forEach(s=>{const on=t>=s.a&&t<s.b;s.d.style.display=on?'block':'none';if(on&&s.update){s.update(t)}});
+  if(t>=4||t<3.85) ; // handled in scenes
+  // beat pulse (kick) on the whole stage during the groove
+  const inG=(t>=4&&t<24)||t>=26;const ph=(t%0.5)/0.5;
+  stage.dataset.pulse=inG?1:0;
+  const sc=inG?1+.014*Math.pow(1-ph,3):1;
+  const scn=stage.querySelectorAll('.scene');
+  scn.forEach(d=>{if(d.style.display==='block'&&d.id!=='s5'){d.style.transform=`scale(${sc}) rotate(${Math.sin(t*1.7)*.18}deg)`}});
+  // wipes on scene cuts
+  let wv=0,wx=0;CUTS.forEach(c=>{const d=t-c;if(d>-.14&&d<.14){wv=1;wx=d<0?(1-(d+.14)/.14)*0:0; wipe.dataset.p=(d+.14)/.28}});
+  if(wv){const p=+wipe.dataset.p;wipe.style.display='block';wipe.style.right='auto';wipe.style.left=(1180-p*2360)+'px'}else wipe.style.display='none';
+  // flashes at the two drops
+  let f=0;[4,26,29].forEach(c=>{const d=t-c;if(d>=0&&d<.35)f=Math.max(f,(c===29?.4:.95)*Math.pow(1-d/.35,2))});
+  if(!(t>=20&&t<23)) flash.style.opacity=f;else if(f) flash.style.opacity=f;
+  if(t>=20&&t<23){}
+  bar.style.width=(t/30*1080)+'px';
+  $('#rec').style.opacity=(Math.floor(t*2)%2)?1:.25;
+  hud.style.opacity=(t<4||(t>=6&&t<8)||(t>=16&&t<24))?1:.0;
+  hud.querySelectorAll('.corner').forEach(c=>c.style.borderColor=(S.s1.d.style.display==='block'||t>=6&&t<8||S.s4.d.style.display==='block'||S.s6.d.style.display==='block'||S.s10.d.style.display==='block'||S.s11.d.style.display==='block')?'rgba(46,66,80,.5)':'rgba(255,255,255,.75)');
+};
+function fit(){const k=Math.min(innerWidth/1080,innerHeight/1920);stage.style.transform=`translate(-50%,-50%) scale(${k})`}
+addEventListener('resize',fit);fit();
+window.ready=Promise.all([document.fonts.ready,...[...document.images].map(i=>i.decode?i.decode().catch(()=>{}):0)]);
+window.render(0);
+// preview playback
+const aud=$('#aud');let raf,t0;
+function loop(){const t=aud.currentTime;render(t);if(t<30&&!aud.paused)raf=requestAnimationFrame(loop);else if(t>=29.9){$('#start').style.display='flex';$('#start div').textContent='↻ שוב'}}
+$('#start').onclick=()=>{$('#start').style.display='none';aud.currentTime=0;aud.play();loop()};
+if(location.hash==='#capture'){$('#start').style.display='none'}
+</script>
+</body>
+</html>
