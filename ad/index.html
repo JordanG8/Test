@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>טל גורן · אדריכלית — 30 שניות</title>
+<title>טל גורן · אדריכלית — 60 שניות</title>
 <style>
 @font-face{font-family:Heebo;font-weight:100 900;src:url(fonts/heebo-he.woff2) format("woff2");unicode-range:U+307-308,U+590-5FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
 @font-face{font-family:Heebo;font-weight:100 900;src:url(fonts/heebo-lat.woff2) format("woff2");unicode-range:U+??,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
@@ -43,8 +43,8 @@ svg{overflow:visible}
 </head>
 <body>
 <div id="wrap"><div id="stage"></div></div>
-<div id="start"><div>▶ לחצו להפעלה עם סאונד</div><small>30 שניות · 1080×1920</small></div>
-<audio id="aud" src="audio.mp3" preload="auto"></audio>
+<div id="start"><div>▶ לחצו להפעלה עם סאונד</div><small>60 שניות · 1080×1920</small></div>
+<audio id="aud" src="ad60.mp3" preload="auto"></audio>
 <script>
 const $=(s,p=document)=>p.querySelector(s);
 const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
@@ -78,7 +78,7 @@ const sc=(id,cls,a,b)=>{const d=el('scene '+cls);d.id=id;d.dataset.a=a;d.dataset
  s.h1=words('יש לך מגרש.','',"position:absolute;right:70px;left:70px;top:190px;font-size:150px;color:#fff");
  s.h2=words('ומיליון שאלות.','',"position:absolute;right:70px;left:70px;top:380px;font-size:118px;color:#d4a08a");
  cam.append(s.h1,s.h2);
- const Q=[['כמה זה יעלה?',1.0,80,700,-5],['כמה זמן זה ייקח?',1.5,420,860,4],['איזה קבלן?',2.0,90,1000,3],['מי מטפל בוועדה?',2.5,330,1130,-4],['מאיפה מתחילים?',3.0,110,1290,5],['תקציב?',3.25,560,1420,-6],['היתר?',3.5,120,1470,3],['חריגות??',3.75,430,1560,-3]];
+ const Q=[['מאיפה מתחילים?',1.0,80,700,-5],['איזה קבלן?',1.5,420,860,4],['מי מטפל בוועדה?',2.0,90,1000,3],['כמה זה יעלה?',2.5,330,1130,-4],['כמה זמן זה ייקח?',3.0,110,1290,5],['תקציב?',3.25,560,1420,-6],['היתר?',3.5,120,1470,3],['חריגות??',3.75,430,1560,-3]];
  s.q=Q.map(q=>{const c=el('chip',q[0],`right:${q[2]}px;top:${q[3]-120}px;font-size:${52+Math.round(q[1]*8)}px`);cam.appendChild(c);return {c,t0:q[1],r:q[4]}});
  s.cam=cam}
 S.s0.update=t=>{const s=S.s0,sh=seg(t,1,4);
@@ -281,7 +281,7 @@ S.s11.update=t=>{const s=S.s11;const im=s.ph.firstChild;im.style.transform=`scal
 S.s12.update=t=>{const s=S.s12;const h=$('#hs');h.style.strokeDasharray=1;h.style.strokeDashoffset=1-E.io(seg(t,26,27.6));
  pop(s.logo,t,26.0,{s:1.3,d:.5,ease:E.expo});wordAnim(s.hd,t,26.3,.12);wordAnim(s.hd2,t,26.7,.12);
  pop(s.cta,t,27.2,{y:80,d:.35});
- const beat=(t*2)%1;s.cta.style.background=(t>=28&&Math.floor(t*2)%2===0)?'var(--clay)':'var(--paper)';s.cta.style.color=(t>=28&&Math.floor(t*2)%2===0)?'#fff':'var(--slate)';
+ const bb=t>=28&&Math.floor(t*4)%2===0;s.cta.style.background=bb?'var(--clay)':'var(--paper)';s.cta.style.color=bb?'#fff':'var(--slate)';
  pop(s.ph,t,27.6,{s:.7,d:.35});pop(s.web,t,28.0,{y:30,d:.3});pop(s.tr,t,28.3,{y:20,d:.3});
  if(t>=29){s.ph.style.transform=`scale(${1+Math.max(0,.12-(t-29)*.5)})`}};
 
@@ -295,12 +295,14 @@ stage.appendChild(el('','','')).id='grain';
 const bar=el('','','');bar.id='bar';stage.appendChild(bar);
 const CUTS=[6,8,10,12,14,16,18];
 
-window.render=function(t){
-  t=Math.max(0,Math.min(29.999,t));
+const O=[0,1,2.5,3,4,6,8,10,12,14,16,18,20,23,24,26,30],NW=[0,2.6,4.6,5.6,7,11.5,15,19.5,24.5,28.5,32.5,36.5,40.5,46.5,49,54,60];
+function oldOf(tn){for(let i=1;i<NW.length;i++)if(tn<=NW[i])return O[i-1]+(tn-NW[i-1])/(NW[i]-NW[i-1])*(O[i]-O[i-1]);return 29.999}
+window.render=function(tn){
+  tn=Math.max(0,Math.min(59.999,tn));const t=Math.min(29.999,oldOf(tn));
   Object.values(S).forEach(s=>{const on=t>=s.a&&t<s.b;s.d.style.display=on?'block':'none';if(on&&s.update){s.update(t)}});
   if(t>=4||t<3.85) ; // handled in scenes
   // beat pulse (kick) on the whole stage during the groove
-  const inG=(t>=4&&t<24)||t>=26;const ph=(t%0.5)/0.5;
+  const inG=(tn>=7&&tn<49)||tn>=54;const ph=(tn%0.5)/0.5;
   stage.dataset.pulse=inG?1:0;
   const sc=inG?1+.014*Math.pow(1-ph,3):1;
   const scn=stage.querySelectorAll('.scene');
@@ -312,8 +314,8 @@ window.render=function(t){
   let f=0;[4,26,29].forEach(c=>{const d=t-c;if(d>=0&&d<.35)f=Math.max(f,(c===29?.4:.95)*Math.pow(1-d/.35,2))});
   if(!(t>=20&&t<23)) flash.style.opacity=f;else if(f) flash.style.opacity=f;
   if(t>=20&&t<23){}
-  bar.style.width=(t/30*1080)+'px';
-  $('#rec').style.opacity=(Math.floor(t*2)%2)?1:.25;
+  bar.style.width=(tn/60*1080)+'px';
+  $('#rec').style.opacity=(Math.floor(tn*2)%2)?1:.25;
   hud.style.opacity=(t<4||(t>=6&&t<8)||(t>=16&&t<24))?1:.0;
   hud.querySelectorAll('.corner').forEach(c=>c.style.borderColor=(S.s1.d.style.display==='block'||t>=6&&t<8||S.s4.d.style.display==='block'||S.s6.d.style.display==='block'||S.s10.d.style.display==='block'||S.s11.d.style.display==='block')?'rgba(46,66,80,.5)':'rgba(255,255,255,.75)');
 };
@@ -323,7 +325,7 @@ window.ready=Promise.all([document.fonts.ready,...[...document.images].map(i=>i.
 window.render(0);
 // preview playback
 const aud=$('#aud');let raf,t0;
-function loop(){const t=aud.currentTime;render(t);if(t<30&&!aud.paused)raf=requestAnimationFrame(loop);else if(t>=29.9){$('#start').style.display='flex';$('#start div').textContent='↻ שוב'}}
+function loop(){const t=aud.currentTime;render(t);if(t<60&&!aud.paused)raf=requestAnimationFrame(loop);else if(t>=59.9){$('#start').style.display='flex';$('#start div').textContent='↻ שוב'}}
 $('#start').onclick=()=>{$('#start').style.display='none';aud.currentTime=0;aud.play();loop()};
 if(location.hash==='#capture'){$('#start').style.display='none'}
 </script>

@@ -1,5 +1,5 @@
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
-const fs=require('fs');const FPS=30,TOTAL=900,W=4;
+const fs=require('fs');const FPS=30,TOTAL=1800,W=4;
 (async()=>{
  fs.mkdirSync('frames',{recursive:true});
  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});

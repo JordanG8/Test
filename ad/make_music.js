@@ -1,6 +1,6 @@
 // Synthesizes the 30s soundtrack (120 BPM, A minor) -> audio.wav. Pure Node, no deps.
 const fs = require('fs');
-const SR = 44100, DUR = 30, N = SR * DUR, BEAT = 0.5;
+const SR = 44100, DUR = 60, N = SR * DUR, BEAT = 0.5;
 const mk = () => new Float32Array(N);
 const drums = [mk(), mk()], music = [mk(), mk()], fx = [mk(), mk()], send = mk();
 let seed = 1337; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1;
@@ -66,63 +66,64 @@ function blip(t, m, g = 0.2, p = 0) { tone(fx, t, 0.12, hz(m), g, { wave: 'sq', 
 function thud(t, g = 0.9) { kick(t, 1.1); noiseBurst(fx, t, 0.25, g * 0.5, 100, 2500, 22, 0, 0.3); }
 function tick(t, g = 0.22, f = 2200) { tone(fx, t, 0.03, f, g, { wave: 'sin', dec: 90, att: 0.0005 }); }
 
-// ---------- arrangement ----------
-const chords = [ // Am F C G : [bass midi, chord tones]
-  [33, [57, 60, 64, 69]], [29, [53, 57, 60, 65]], [36, [55, 60, 64, 67]], [31, [55, 59, 62, 67]],
-];
-const bar = (b) => b * 4 * BEAT;
-const inFull = (t) => (t >= 4 && t < 24) || (t >= 26 && t < 30);
+// ---------- arrangement (60s; scene starts locked to the visual timeline) ----------
+const O =[0,1,2.5,3,4,6,8,10,12,14,16,18,20,23,24,26,30];
+const NW=[0,2.6,4.6,5.6,7,11.5,15,19.5,24.5,28.5,32.5,36.5,40.5,46.5,49,54,60];
+const W = (t) => { for (let i = 1; i < O.length; i++) if (t <= O[i]) return NW[i-1] + (t - O[i-1]) / (O[i] - O[i-1]) * (NW[i] - NW[i-1]); return 60; };
+const chords = [[33,[57,60,64,69]],[29,[53,57,60,65]],[36,[55,60,64,67]],[31,[55,59,62,67]]];
+const kicks = [];
+const KICK = kick; // eslint-disable-line
+// 0-7 tension
+tone(music, 0, 7, 55, 0.35, { wave: 'saw', att: 3, dec: -0.12, cut: 300, sub: 1, snd: 0.2 });
+tone(music, 0, 7, 82.4, 0.10, { wave: 'saw', att: 4, dec: -0.15, cut: 900, det: 0.01, snd: 0.5 });
+for (let t = 0.25; t < 7; t += 0.5) tick(t, 0.12, 1500);
+for (let t = 3.5; t < 7; t += 0.25) hat(t, 0.06 + (t - 3.5) * 0.06);
+[1.0,1.5,2.0,2.5,3.0,3.25,3.5,3.75].forEach((o, i) => blip(W(o), [69,72,76,69,72,76,81,84][i], 0.15, i % 2 ? 0.5 : -0.5));
+[5.6,6.0,6.3,6.5,6.65,6.775,6.875,6.95].forEach((t, i) => snareRoll(t, 0.22 + i * 0.05));
+riser(0.8, 7.0, 0.45); revCymbal(7.0, 2.2, 0.5); boom(7.0);
 
-// 0-4 tension: drone, accelerating hats, question blips, roll, riser
-tone(music, 0, 4, 55, 0.35, { wave: 'saw', att: 1.5, dec: -0.15, cut: 300, sub: 1, snd: 0.2 });
-tone(music, 0, 4, 82.4, 0.10, { wave: 'saw', att: 2.5, dec: -0.2, cut: 900, det: 0.01, snd: 0.5 });
-for (let i = 0; i < 8; i++) tick(0.25 + i * 0.5, 0.12, 1500); // clock/heartbeat
-for (let t = 2; t < 4; t += 0.25) hat(t, 0.08 + (t - 2) * 0.1);
-[1.0, 1.5, 2.0, 2.5, 3.0, 3.25, 3.5, 3.75].forEach((t, i) => blip(t, [69, 72, 76, 69, 72, 76, 81, 84][i], 0.16, i % 2 ? 0.5 : -0.5));
-[3.0, 3.25, 3.5, 3.625, 3.75, 3.8125, 3.875, 3.9375].forEach((t, i) => snareRoll(t, 0.25 + i * 0.05));
-riser(0.4, 4.0, 0.5); revCymbal(4.0, 1.6, 0.5);
-boom(4.0);
-
-// 4-24 & 26-30 groove
-for (let b = 2; b < 15; b++) {
-  const t0 = bar(b); if (t0 >= 24 && t0 < 26) continue;
-  const [bm, ch] = chords[(b - 2) % 4];
-  const big = t0 >= 20 && t0 < 24; // montage = busier
-  for (let s = 0; s < 4; s++) {
-    const t = t0 + s * BEAT;
-    kick(t, 0.95);
-    if (s % 2 === 1) clap(t, 0.7);
-    hat(t + BEAT / 2, 0.3, s === 3, 0.25);
-    if (big || t0 >= 26) { hat(t + BEAT / 4, 0.12, false, -0.3); hat(t + BEAT * 0.75, 0.12, false, 0.3); }
-    // bass: offbeat pump rolling 8ths
-    bass(t, bm, 0.22, 0.5); bass(t + BEAT / 2, bm + (s % 2 ? 12 : 0), 0.22, 0.42);
+function groove(t0, t1, opts = {}) {
+  let n = 0;
+  for (let tb = t0; tb < t1 - 0.01; tb += 2, n++) {
+    const [bm, ch] = chords[n % 4];
+    const big = tb >= 40.5 && tb < 49 || opts.big;
+    for (let s = 0; s < 4; s++) {
+      const t = tb + s * BEAT; if (t >= t1) break;
+      kick(t, 0.95); kicks.push(t);
+      if (s % 2 === 1) clap(t, 0.7);
+      hat(t + BEAT / 2, 0.28, s === 3, 0.25);
+      if (big) { hat(t + BEAT / 4, 0.12, false, -0.3); hat(t + BEAT * 0.75, 0.12, false, 0.3); }
+      bass(t, bm, 0.22, 0.5); bass(t + BEAT / 2, bm + (s % 2 ? 12 : 0), 0.22, 0.42);
+    }
+    const pat = [0,2,1,3,2,1,3,2,0,3,1,2,3,2,1,0];
+    for (let i = 0; i < 16; i++) { if (n === 0 && i % 2) continue; const m = ch[pat[i]] + (i % 8 === 7 ? 12 : 0); pluck(tb + i * BEAT / 4, m, 0.14 + (i % 4 === 0 ? 0.05 : 0), Math.sin(i) * 0.6); }
+    pad(tb, 2, ch.slice(0, 3).map(m => m - 12), 0.05);
+    if (big) [76,74,72,76,79,76,74,72].forEach((m, i) => tone(music, tb + i * BEAT / 2, 0.24, hz(m), 0.10, { wave: 'sq', dec: 5, cut: 3200, snd: 0.6, att: 0.004 }));
   }
-  // 16th arp
-  const pat = [0, 2, 1, 3, 2, 1, 3, 2, 0, 3, 1, 2, 3, 2, 1, 0];
-  for (let i = 0; i < 16; i++) { if (t0 < 6 && i % 2) continue; const m = ch[pat[i]] + (i % 8 === 7 ? 12 : 0); pluck(t0 + i * BEAT / 4, m, 0.16 + (i % 4 === 0 ? 0.06 : 0), Math.sin(i) * 0.6); }
-  pad(t0, 2, ch.slice(0, 3).map(m => m - 12), 0.05);
-  // lead hook in the montage & finale
-  if (big || t0 >= 26) { const hook = [76, 74, 72, 76, 79, 76, 74, 72]; hook.forEach((m, i) => tone(music, t0 + i * BEAT / 2, 0.24, hz(m), 0.11, { wave: 'sq', dec: 5, cut: 3200, snd: 0.6, att: 0.004 })); }
 }
-// scene whooshes/hits on each 2s cut
-[6, 8, 10, 14, 16, 18].forEach(t => { whoosh(t - 0.35, 0.35); tick(t, 0.3, 1000); });
-whoosh(11.65, 0.35); thud(12.0, 0.8); noiseBurst(fx, 12, 0.5, 0.3, 300, 3000, 8, 0, 0.5); // permit stamp
-ping(6.0, 88, 0.3); ping(6.5, 93, 0.25); // whatsapp/phone
-[7.0, 7.125, 7.25, 7.375, 7.5].forEach((t, i) => tick(t, 0.12, 2600 + i * 80)); // typing
-for (let i = 0; i < 16; i++) tick(18.0 + i * 0.125, 0.14, 1800 + i * 90); // calculator ticks
-ping(19.75, 96, 0.3);
-for (let i = 0; i < 8; i++) { const t = 20 + i * 0.5; noiseBurst(fx, t, 0.05, 0.25, 800, 6000, 80, i % 2 ? .4 : -.4, 0.2); } // photo-cut shutter clicks
-// key jingle + door (montage end ~ 23.x)
-[91, 96, 100].forEach((m, i) => tone(fx, 23.0 + i * 0.09, 0.7, hz(m), 0.13, { wave: 'sin', dec: 5, snd: 0.7 }));
+groove(7, 49); groove(54, 60, { big: true });
 
-// 24-26 breakdown: pad + soft bass, no kick, riser into the final drop
-pad(24, 2, [57, 60, 64, 67], 0.09); tone(music, 24, 2, 55, 0.3, { wave: 'saw', dec: 0.5, cut: 260, sub: 1 });
-[0, 0.5, 1, 1.5].forEach((o, i) => pluck(24 + o, [69, 72, 76, 81][i], 0.14, i % 2 ? .5 : -.5, 0.6));
-riser(24.5, 26.0, 0.55); revCymbal(26.0, 1.2, 0.4); for (let i = 0; i < 8; i++) snareRoll(25 + i * 0.125, 0.15 + i * 0.05);
-boom(26.0, 1.0);
+// scene-cut whooshes at every visual cut (except the two drops)
+[6,8,10,12,14,16,18].forEach(o => { const t = W(o); whoosh(t - 0.4, 0.4); tick(t, 0.3, 1000); });
+// chat: pings + typing
+ping(W(6.0), 88, 0.3); ping(W(6.5), 93, 0.25);
+for (let i = 0; i < 6; i++) tick(W(7.0 + i * 0.1), 0.12, 2600 + i * 80);
+// permit stamp (visual slam at old 12.5)
+{ const t = W(12.5); whoosh(t - 0.4, 0.4); thud(t, 0.8); noiseBurst(fx, t, 0.5, 0.3, 300, 3000, 8, 0, 0.5); }
+// calculator ticks + ding
+for (let i = 0; i < 14; i++) tick(W(18.0 + i * 0.125), 0.13, 1800 + i * 90);
+ping(W(19.75), 96, 0.3);
+// montage shutter clicks on each photo cut (1s each)
+for (let i = 0; i < 6; i++) noiseBurst(fx, 40.5 + i, 0.05, 0.25, 800, 6000, 80, i % 2 ? .4 : -.4, 0.2);
+// key jingle
+[91,96,100].forEach((m, i) => tone(fx, 46.5 + i * 0.09, 1.0, hz(m), 0.13, { wave: 'sin', dec: 4, snd: 0.7 }));
+// 49-54 breakdown: warm pad, soft bass, gentle plucks, riser into the final drop
+pad(49, 5, [57,60,64,67], 0.09); tone(music, 49, 5, 55, 0.3, { wave: 'saw', dec: 0.3, cut: 260, sub: 1 });
+for (let i = 0; i < 8; i++) pluck(49 + i * 0.6, [69,72,76,81,76,72,69,64][i], 0.13, i % 2 ? .5 : -.5, 0.7);
+riser(51.4, 54.0, 0.5); revCymbal(54.0, 1.4, 0.4); for (let i = 0; i < 8; i++) snareRoll(52.6 + i * 0.16 * (1 - i * 0.05), 0.15 + i * 0.05);
+boom(54.0, 1.0);
 // final stab + button
-[57, 60, 64, 69].forEach((m, k) => tone(music, 29.0, 1.0, hz(m + 12), 0.09, { wave: 'saw', dec: 1.8, cut: 3500, det: 0.005, snd: 0.7, p: (k - 1.5) * 0.4 }));
-boom(29.0, 0.7); ping(29.5, 100, 0.16);
+{ const t = W(29.0); [57,60,64,69].forEach((m, k) => tone(music, t, 1.3, hz(m + 12), 0.09, { wave: 'saw', dec: 1.6, cut: 3500, det: 0.005, snd: 0.7, p: (k - 1.5) * 0.4 })); boom(t, 0.7); ping(t + 0.5, 100, 0.16); }
 
 // ---------- mix ----------
 function reverb(inp) { // Schroeder-ish stereo
@@ -139,7 +140,7 @@ function reverb(inp) { // Schroeder-ish stereo
 }
 // sidechain duck from kicks
 const duck = new Float32Array(N).fill(1);
-for (let b = 2; b < 15; b++) { const t0 = bar(b); if (t0 >= 24 && t0 < 26) continue; for (let s = 0; s < 4; s++) { const k = ((t0 + s * BEAT) * SR) | 0; for (let i = 0; i < 0.22 * SR && k + i < N; i++) duck[k + i] = Math.min(duck[k + i], 1 - 0.7 * Math.exp(-(i / SR) / 0.07)); } }
+for (const kt of kicks) { const k = (kt * SR) | 0; for (let i = 0; i < 0.22 * SR && k + i < N; i++) duck[k + i] = Math.min(duck[k + i], 1 - 0.7 * Math.exp(-(i / SR) / 0.07)); }
 const rev = reverb(send);
 const L = new Float32Array(N), R = new Float32Array(N);
 for (let i = 0; i < N; i++) {
@@ -152,10 +153,10 @@ const carve = (a, b) => { for (let i = (a * SR) | 0; i < (b * SR) | 0; i++) { L[
 // master: soft clip, normalize, fade
 let peak = 0; for (let i = 0; i < N; i++) { L[i] = Math.tanh(L[i] * 1.3); R[i] = Math.tanh(R[i] * 1.3); peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i])); }
 const norm = 0.92 / peak;
-for (let i = 0; i < N; i++) { const f = Math.min(1, (N - i) / (0.35 * SR)), fi = Math.min(1, i / (0.02 * SR)); L[i] *= norm * f * fi; R[i] *= norm * f * fi; }
+for (let i = 0; i < N; i++) { const f = Math.min(1, (N - i) / (0.6 * SR)), fi = Math.min(1, i / (0.02 * SR)); L[i] *= norm * f * fi; R[i] *= norm * f * fi; }
 const buf = Buffer.alloc(44 + N * 4);
 buf.write('RIFF', 0); buf.writeUInt32LE(36 + N * 4, 4); buf.write('WAVEfmt ', 8); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(2, 22);
 buf.writeUInt32LE(SR, 24); buf.writeUInt32LE(SR * 4, 28); buf.writeUInt16LE(4, 32); buf.writeUInt16LE(16, 34); buf.write('data', 36); buf.writeUInt32LE(N * 4, 40);
 for (let i = 0; i < N; i++) { buf.writeInt16LE((L[i] * 32767) | 0, 44 + i * 4); buf.writeInt16LE((R[i] * 32767) | 0, 46 + i * 4); }
-fs.writeFileSync(__dirname + '/audio.wav', buf);
-console.log('audio.wav written, peak was', peak.toFixed(2));
+fs.writeFileSync(__dirname + '/music.wav', buf);
+console.log('music.wav written, peak was', peak.toFixed(2));
